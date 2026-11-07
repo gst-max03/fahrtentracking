@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Steuer Fahrten-Tracker</title>
+    
+    <!-- PWA Verknüpfungen (Angepasst für Hauptverzeichnis) -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="theme-color" content="#1e293b">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -22,7 +28,13 @@
 </head>
 <body class="text-gray-800 antialiased min-h-screen pb-20 md:pb-8">
 
-    <div class="max-w-7xl mx-auto p-3 md:p-6">
+    <!-- UPDATE BANNER -->
+    <div id="updateBanner" class="hidden fixed top-0 left-0 w-full bg-blue-600 text-white p-3 z-50 shadow-md flex justify-between items-center text-sm font-medium">
+        <span>Eine neue Version der App ist verfügbar!</span>
+        <button onclick="updateApp()" class="bg-white text-blue-600 px-3 py-1 rounded shadow-sm hover:bg-blue-50 transition">Jetzt aktualisieren</button>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-3 md:p-6 mt-4">
         
         <!-- Header mit Jahresauswahl & Einstellungen -->
         <header class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -298,6 +310,37 @@
     </div>
 
     <script>
+        // --- Service Worker Registration ---
+        let newWorker;
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.addEventListener('updatefound', () => {
+                        newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                document.getElementById('updateBanner').classList.remove('hidden');
+                            }
+                        });
+                    });
+                }).catch(err => console.log('SW Registration failed: ', err));
+            });
+
+            // Trigger reload after update
+            let refreshing;
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (refreshing) return;
+                window.location.reload();
+                refreshing = true;
+            });
+        }
+
+        function updateApp() {
+            if (newWorker) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+        }
+
         // --- State ---
         const DATA_KEY = 'steuer_fahrten_data_v4';
         const SETTINGS_KEY = 'steuer_fahrten_settings_v4';
