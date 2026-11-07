@@ -1,9 +1,9 @@
 {
-  "id": "/fahrtentracking/",
+  "id": "/fahrtentracking/FinanzFahrt/",
   "name": "Fahrtentracking",
   "short_name": "Fahrten",
-  "start_url": "/fahrtentracking/index.html?app=fahrtentracking",
-  "scope": "/fahrtentracking/",
+  "start_url": "/fahrtentracking/FinanzFahrt/index.html?app=fahrtentracking",
+  "scope": "/fahrtentracking/FinanzFahrt/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#1e293b",
