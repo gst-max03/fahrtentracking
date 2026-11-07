@@ -1,11 +1,11 @@
 const APP_PREFIX = 'fahrtentracking-offline-';
-const CACHE_NAME = `${APP_PREFIX}v1`;
+const CACHE_NAME = `${APP_PREFIX}v2`;
 
 const CACHE_URLS = [
-  '/fahrtentracking/',
-  '/fahrtentracking/index.html',
-  '/fahrtentracking/manifest.json',
-  '/fahrtentracking/icon.png'
+  '/fahrtentracking/FinanzFahrt/',
+  '/fahrtentracking/FinanzFahrt/index.html',
+  '/fahrtentracking/FinanzFahrt/manifest.json',
+  '/fahrtentracking/FinanzFahrt/icon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -29,7 +29,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  if (url.origin !== location.origin || !url.pathname.startsWith('/fahrtentracking/')) return;
+  if (url.origin !== location.origin || !url.pathname.startsWith('/fahrtentracking/FinanzFahrt/')) return;
 
   event.respondWith(
     fetch(event.request)
