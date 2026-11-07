@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steuer Fahrten-Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        input[type="file"] { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        
+        /* Modal Transitions */
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 200ms, transform 200ms; }
+        .modal-leave { opacity: 1; transform: scale(1); }
+        .modal-leave-active { opacity: 0; transform: scale(0.95); transition: opacity 200ms, transform 200ms; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen pb-20 md:pb-8">
+
+    <div class="max-w-7xl mx-auto p-3 md:p-6">
+        
+        <!-- Header mit Jahresauswahl & Einstellungen -->
+        <header class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-blue-600 flex items-center justify-center md:justify-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                    </svg>
+                    Fahrten-Tracker
+                </h1>
+                <p class="text-gray-500 mt-0.5 text-sm text-center md:text-left">Erfassung für die Steuererklärung</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Jahres Filter -->
+                <div class="relative bg-white rounded-lg shadow-sm border border-gray-200 flex items-center px-3 py-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <select id="yearSelect" onchange="changeYear(this.value)" class="bg-transparent text-sm font-bold text-blue-600 outline-none cursor-pointer">
+                        <!-- Options injected by JS -->
+                    </select>
+                </div>
+
+                <!-- Einstellungen Button -->
+                <button onclick="openSettingsModal()" class="bg-white p-2 rounded-lg shadow-sm border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition" title="Verwaltung (Personen, Ziele, Gründe)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            
+            <!-- Linke Spalte: Formular -->
+            <div class="space-y-5 lg:col-span-4 xl:col-span-3">
+                <div id="formCard" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 transition-all relative overflow-hidden">
+                    <div id="editBanner" class="hidden absolute top-0 left-0 w-full bg-blue-500 text-white text-xs font-bold text-center py-1">Bearbeitungsmodus</div>
+                    
+                    <div class="flex justify-between items-center mb-3 mt-1">
+                        <h2 id="formTitle" class="text-lg font-semibold text-gray-700">Neue Fahrt erfassen</h2>
+                        <button type="button" id="cancelEditBtn" onclick="cancelEdit()" class="hidden text-xs text-gray-500 hover:text-red-600 font-medium px-2 py-1 rounded bg-gray-50 hover:bg-red-50 transition">Abbrechen</button>
+                    </div>
+                    
+                    <form id="tripForm" class="space-y-3">
+                        <input type="hidden" id="editIdInput">
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Datum</label>
+                                <input type="date" id="dateInput" required class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Person</label>
+                                <select id="personInput" required class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition bg-white">
+                                    <option value="" disabled selected>Wählen...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Kategorie</label>
+                            <select id="categoryInput" required class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition bg-white">
+                                <option value="" disabled selected>Bitte wählen...</option>
+                                <option value="Arzt">Arzt</option>
+                                <option value="Apotheke">Apotheke</option>
+                                <option value="Heilbehandlung">Heilbehandlung</option>
+                                <option value="Schulung">Schulung</option>
+                                <option value="Sonstiges">Sonstiges</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Ziel / Arztname</label>
+                            <input type="text" id="targetInput" list="targetList" autocomplete="off" required placeholder="z.B. Dr. Müller" class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                            <datalist id="targetList"></datalist>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Zieladresse</label>
+                            <input type="text" id="addressInput" required placeholder="Straße, PLZ Ort" class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Grund / Notiz (Optional)</label>
+                            <input type="text" id="reasonInput" list="reasonList" autocomplete="off" placeholder="z.B. Ergotherapie" class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                            <datalist id="reasonList"></datalist>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Einfach (km)</label>
+                                <input type="number" id="kmOneWayInput" required min="0.1" step="0.1" placeholder="0" class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Gesamt (km)</label>
+                                <input type="number" id="kmTotalInput" readonly class="w-full px-2.5 py-1.5 text-sm border border-gray-200 bg-gray-50 rounded outline-none transition text-gray-500 cursor-not-allowed">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded transition shadow-sm flex justify-center items-center gap-1.5 mt-2 text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                            Fahrt speichern
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Export / Import Card -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="text-sm font-semibold mb-2 text-gray-700">Daten <span id="exportYearText" class="text-blue-600"></span></h2>
+                    <div class="space-y-2">
+                        <button onclick="exportCSV()" class="w-full bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-sm font-medium py-1.5 px-3 rounded transition flex items-center justify-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            CSV für Steuer
+                        </button>
+                        
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                            <button onclick="exportJSON()" class="bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 text-xs font-medium py-1.5 rounded transition">
+                                Backup laden
+                            </button>
+                            <label class="bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 text-xs font-medium py-1.5 rounded transition flex items-center justify-center cursor-pointer">
+                                Importieren
+                                <input type="file" id="importFile" accept=".json" onchange="importJSON(event)">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rechte Spalte: Kompakte Liste -->
+            <div class="lg:col-span-8 xl:col-span-9 space-y-4 flex flex-col h-[calc(100vh-140px)]">
+                <!-- Statistik Mini-Card -->
+                <div class="bg-blue-600 rounded-xl shadow-sm p-4 text-white flex items-center justify-between shrink-0">
+                    <div>
+                        <h2 class="text-blue-100 text-sm">Absetzbare Kosten (Hin & Zurück) <span id="statsYearDisplay" class="font-bold text-white"></span></h2>
+                    </div>
+                    <div class="flex items-baseline gap-1">
+                        <span id="totalKmDisplay" class="text-2xl font-bold tracking-tight">0</span>
+                        <span class="text-sm text-blue-200">km</span>
+                    </div>
+                </div>
+
+                <!-- Kompakte Tabelle / Liste -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-gray-200 flex justify-between items-center bg-gray-50 shrink-0">
+                        <h2 class="text-sm font-semibold text-gray-700">Erfasste Fahrten <span id="listYearTitle"></span></h2>
+                        <span id="entryCountBadge" class="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    
+                    <div id="emptyState" class="p-8 text-center text-gray-400 hidden shrink-0 mt-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p class="text-sm">In diesem Jahr noch keine Fahrten erfasst.</p>
+                    </div>
+
+                    <!-- Header Row for Desktop/Tablet -->
+                    <div class="hidden sm:flex px-3 py-1.5 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 shrink-0 gap-2">
+                        <div class="w-16">Datum</div>
+                        <div class="w-12">Person</div>
+                        <div class="w-16">Kategorie</div>
+                        <div class="flex-1">Ziel</div>
+                        <div class="flex-1">Grund / Notiz</div>
+                        <div class="w-16 text-right pr-4">Gesamt</div>
+                        <div class="w-12"></div>
+                    </div>
+
+                    <!-- List Container -->
+                    <div id="tripsList" class="overflow-y-auto custom-scrollbar flex-1 divide-y divide-gray-100">
+                        <!-- Einträge per JS (Kompakt) -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === MODALS === -->
+
+    <!-- Settings / Verwaltung Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex-col items-center justify-center z-40 p-3 transition-opacity opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform scale-95 transition-transform" id="settingsModalContent">
+            
+            <div class="px-5 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50 shrink-0">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">Verwaltung</h2>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-gray-700 transition p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div class="flex border-b border-gray-200 px-2 pt-1 bg-gray-50 shrink-0 overflow-x-auto custom-scrollbar">
+                <button onclick="switchTab('destinations')" id="tabBtn-destinations" class="px-3 py-1.5 border-b-2 font-medium text-blue-600 border-blue-600 text-sm whitespace-nowrap">Ziele & Vorlagen</button>
+                <button onclick="switchTab('persons')" id="tabBtn-persons" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Personen</button>
+                <button onclick="switchTab('reasons')" id="tabBtn-reasons" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Gründe / Notizen</button>
+            </div>
+
+            <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                
+                <!-- Tab: Ziele -->
+                <div id="tabContent-destinations" class="space-y-4 block">
+                    <p class="text-xs text-gray-500 mb-2">Gespeicherte Ziele für die Auto-Vervollständigung.</p>
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input type="hidden" id="destEditId">
+                            <select id="destCategory" class="px-2 py-1.5 border rounded text-xs"><option value="Arzt">Arzt</option><option value="Apotheke">Apotheke</option><option value="Heilbehandlung">Heilbehandlung</option><option value="Schulung">Schulung</option><option value="Sonstiges">Sonstiges</option></select>
+                            <input type="text" id="destName" placeholder="Zielname" class="px-2 py-1.5 border rounded text-xs">
+                            <input type="text" id="destAddress" placeholder="Adresse" class="px-2 py-1.5 border rounded text-xs">
+                            <div class="flex gap-1">
+                                <input type="number" id="destKm" placeholder="KM einfach" min="0.1" step="0.1" class="px-2 py-1.5 border rounded text-xs w-full">
+                                <button onclick="saveDestination()" class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium" id="destSaveBtn">Save</button>
+                                <button onclick="resetDestForm()" id="destCancelBtn" class="hidden bg-gray-200 text-gray-700 px-2 py-1.5 rounded text-xs">X</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border rounded-lg overflow-hidden">
+                        <table class="w-full text-left text-xs text-gray-600">
+                            <thead class="bg-gray-50 text-gray-500 font-semibold border-b">
+                                <tr><th class="px-3 py-2">Ziel</th><th class="px-3 py-2 hidden md:table-cell">Adresse</th><th class="px-3 py-2 text-right">KM</th><th class="px-3 py-2 text-center">Aktion</th></tr>
+                            </thead>
+                            <tbody id="destinationsList" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab: Personen -->
+                <div id="tabContent-persons" class="hidden space-y-4">
+                    <p class="text-xs text-gray-500 mb-2">Verwalte die Personen im Haushalt.</p>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="newPersonInput" placeholder="Neuer Name..." class="px-2 py-1.5 text-sm border rounded flex-1">
+                        <button onclick="addPerson()" class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm">Add</button>
+                    </div>
+                    <ul id="personsList" class="bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200 text-sm"></ul>
+                </div>
+
+                <!-- Tab: Gründe / Notizen -->
+                <div id="tabContent-reasons" class="hidden space-y-4">
+                    <p class="text-xs text-gray-500 mb-2">Verwalte gespeicherte Gründe (z.B. Ergotherapie) für die Auto-Vervollständigung.</p>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="newReasonInput" placeholder="Neuer Grund..." class="px-2 py-1.5 text-sm border rounded flex-1">
+                        <button onclick="addReason()" class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm">Add</button>
+                    </div>
+                    <ul id="reasonsList" class="bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200 text-sm"></ul>
+                </div>
+
+            </div>
+            
+            <div class="p-3 border-t border-gray-200 bg-gray-50 flex justify-end shrink-0">
+                <button onclick="closeSettingsModal()" class="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded text-sm font-medium transition">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex-col items-center justify-center z-50 transition-opacity opacity-0 p-4">
+        <div class="bg-white rounded-xl p-5 w-full max-w-sm shadow-2xl transform scale-95 transition-transform" id="confirmModalContent">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Löschen?</h3>
+            <p class="text-sm text-gray-600 mb-5" id="confirmModalText">Bist du sicher?</p>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeConfirmModal()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-sm font-medium transition">Abbrechen</button>
+                <button id="confirmActionBtn" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition shadow-sm">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 md:bottom-6 md:right-6 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-xl transform translate-y-24 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 text-sm">
+        <span id="toastMsg" class="font-medium">Nachricht</span>
+    </div>
+
+    <script>
+        // --- State ---
+        const DATA_KEY = 'steuer_fahrten_data_v4';
+        const SETTINGS_KEY = 'steuer_fahrten_settings_v4';
+        
+        let trips = [];
+        let settings = {
+            persons: ['Gerhard', 'Katha', 'Louis', 'Tim', 'Lia'],
+            destinations: [],
+            reasons: ['Ergotherapie', 'Physiotherapie', 'Routineuntersuchung']
+        };
+        let currentYear = new Date().getFullYear();
+        let selectedYear = currentYear.toString();
+        let confirmActionCallback = null;
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            populateYears();
+            populatePersons();
+            populateReasons();
+            setDefaultDate();
+            
+            document.getElementById('tripForm').addEventListener('submit', handleFormSubmit);
+            document.getElementById('kmOneWayInput').addEventListener('input', calculateTotalKm);
+            document.getElementById('categoryInput').addEventListener('change', updateTargetDatalist);
+            document.getElementById('targetInput').addEventListener('input', handleTargetMemoryFill);
+        });
+
+        // --- Data Management ---
+        function loadData() {
+            const storedTrips = localStorage.getItem(DATA_KEY);
+            if (storedTrips) {
+                try { trips = JSON.parse(storedTrips); } catch (e) { trips = []; }
+            }
+
+            const storedSettings = localStorage.getItem(SETTINGS_KEY);
+            if (storedSettings) {
+                try { 
+                    const parsed = JSON.parse(storedSettings);
+                    settings.persons = parsed.persons || settings.persons;
+                    settings.destinations = parsed.destinations || [];
+                    settings.reasons = parsed.reasons || settings.reasons;
+                } catch (e) {}
+            }
+            renderTrips();
+        }
+
+        function saveData() {
+            localStorage.setItem(DATA_KEY, JSON.stringify(trips));
+            renderTrips();
+            populateYears();
+        }
+
+        function saveSettings() {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+            populatePersons();
+            populateReasons();
+            updateTargetDatalist();
+            renderSettingsDestinations();
+        }
+
+        // --- Year Filter ---
+        function populateYears() {
+            const years = new Set(trips.map(t => t.date.substring(0, 4)));
+            years.add(currentYear.toString());
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+
+            const select = document.getElementById('yearSelect');
+            select.innerHTML = '';
+            
+            sortedYears.forEach(year => {
+                const opt = document.createElement('option');
+                opt.value = year;
+                opt.textContent = year;
+                if(year === selectedYear) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            updateYearDisplays();
+        }
+
+        function changeYear(year) {
+            selectedYear = year;
+            updateYearDisplays();
+            renderTrips();
+        }
+
+        function updateYearDisplays() {
+            document.getElementById('exportYearText').innerText = selectedYear;
+            document.getElementById('statsYearDisplay').innerText = `(${selectedYear})`;
+            document.getElementById('listYearTitle').innerText = `(${selectedYear})`;
+        }
+
+        // --- Form Logic ---
+        function setDefaultDate() {
+            document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+        }
+
+        function calculateTotalKm() {
+            const oneWay = parseFloat(document.getElementById('kmOneWayInput').value) || 0;
+            const total = oneWay * 2;
+            document.getElementById('kmTotalInput').value = total > 0 ? total.toFixed(1) : '';
+        }
+
+        function updateTargetDatalist() {
+            const category = document.getElementById('categoryInput').value;
+            const datalist = document.getElementById('targetList');
+            datalist.innerHTML = '';
+            
+            let filtered = settings.destinations;
+            if (category) filtered = settings.destinations.filter(d => d.category === category);
+            
+            filtered.forEach(dest => {
+                const option = document.createElement('option');
+                option.value = dest.name;
+                datalist.appendChild(option);
+            });
+        }
+
+        function handleTargetMemoryFill(e) {
+            if (document.getElementById('editIdInput').value) return; 
+            const targetVal = e.target.value.trim().toLowerCase();
+            if (!targetVal) return;
+
+            const match = settings.destinations.find(d => d.name.toLowerCase() === targetVal);
+            if (match) {
+                if (document.getElementById('addressInput').value === '' || match.address) {
+                    document.getElementById('addressInput').value = match.address;
+                }
+                if (document.getElementById('kmOneWayInput').value === '' || match.kmOneWay) {
+                    document.getElementById('kmOneWayInput').value = match.kmOneWay;
+                    calculateTotalKm();
+                }
+            }
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const idInput = document.getElementById('editIdInput').value;
+            const date = document.getElementById('dateInput').value;
+            const person = document.getElementById('personInput').value;
+            const category = document.getElementById('categoryInput').value;
+            const target = document.getElementById('targetInput').value.trim();
+            const address = document.getElementById('addressInput').value.trim();
+            const reason = document.getElementById('reasonInput').value.trim();
+            const kmOneWay = parseFloat(document.getElementById('kmOneWayInput').value);
+            const kmTotal = kmOneWay * 2; 
+
+            if (!date || !person || !category || !target || !address || isNaN(kmOneWay)) {
+                return showToast('Pflichtfelder ausfüllen!', 'error');
+            }
+
+            const tripData = { date, person, category, target, address, reason, kmOneWay, kmTotal, updatedAt: new Date().toISOString() };
+
+            if (idInput) {
+                const index = trips.findIndex(t => t.id === idInput);
+                if (index !== -1) trips[index] = { ...trips[index], ...tripData };
+                showToast('Fahrt aktualisiert', 'success');
+                cancelEdit();
+            } else {
+                tripData.id = Date.now().toString();
+                trips.push(tripData);
+                showToast('Gespeichert', 'success');
+                
+                // Smart Feature: Destination
+                const existsDest = settings.destinations.find(d => d.name.toLowerCase() === target.toLowerCase());
+                let settingsChanged = false;
+                if (!existsDest) {
+                    settings.destinations.push({ id: 'd_' + Date.now(), category, name: target, address, kmOneWay });
+                    settingsChanged = true;
+                }
+                // Smart Feature: Reason
+                if (reason && !settings.reasons.find(r => r.toLowerCase() === reason.toLowerCase())) {
+                    settings.reasons.push(reason);
+                    settingsChanged = true;
+                }
+                if(settingsChanged) saveSettings();
+
+                // Reset specific fields
+                document.getElementById('targetInput').value = '';
+                document.getElementById('addressInput').value = '';
+                document.getElementById('reasonInput').value = '';
+                document.getElementById('kmOneWayInput').value = '';
+                document.getElementById('kmTotalInput').value = '';
+            }
+            
+            const tripYear = date.substring(0, 4);
+            if(tripYear !== selectedYear) {
+                selectedYear = tripYear;
+                document.getElementById('yearSelect').value = selectedYear;
+            }
+            saveData();
+        }
+
+        function editTrip(id) {
+            const trip = trips.find(t => t.id === id);
+            if (!trip) return;
+
+            document.getElementById('editIdInput').value = trip.id;
+            document.getElementById('dateInput').value = trip.date;
+            document.getElementById('personInput').value = trip.person;
+            document.getElementById('categoryInput').value = trip.category;
+            document.getElementById('targetInput').value = trip.target;
+            document.getElementById('addressInput').value = trip.address;
+            document.getElementById('reasonInput').value = trip.reason || '';
+            document.getElementById('kmOneWayInput').value = trip.kmOneWay;
+            document.getElementById('kmTotalInput').value = trip.kmTotal;
+
+            document.getElementById('formTitle').innerText = 'Fahrt bearbeiten';
+            document.getElementById('formCard').classList.add('ring-2', 'ring-blue-500');
+            document.getElementById('editBanner').classList.remove('hidden');
+            
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = `Ändern`;
+            btn.classList.replace('bg-blue-600', 'bg-green-600');
+            btn.classList.replace('hover:bg-blue-700', 'hover:bg-green-700');
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+
+            if(window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            document.getElementById('editIdInput').value = '';
+            document.getElementById('targetInput').value = '';
+            document.getElementById('addressInput').value = '';
+            document.getElementById('reasonInput').value = '';
+            document.getElementById('kmOneWayInput').value = '';
+            document.getElementById('kmTotalInput').value = '';
+            
+            document.getElementById('formTitle').innerText = 'Neue Fahrt erfassen';
+            document.getElementById('formCard').classList.remove('ring-2', 'ring-blue-500');
+            document.getElementById('editBanner').classList.add('hidden');
+            
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg> Fahrt speichern`;
+            btn.classList.replace('bg-green-600', 'bg-blue-600');
+            btn.classList.replace('hover:bg-green-700', 'hover:bg-blue-700');
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+        }
+
+        function deleteTripRequest(id) {
+            const trip = trips.find(t => t.id === id);
+            if(!trip) return;
+            document.getElementById('confirmModalText').innerHTML = `Eintrag vom <b>${new Date(trip.date).toLocaleDateString('de-DE')}</b> (${trip.target}) wirklich löschen?`;
+            
+            confirmActionCallback = () => {
+                trips = trips.filter(t => t.id !== id);
+                saveData();
+                showToast('Gelöscht', 'success');
+                if(document.getElementById('editIdInput').value === id) cancelEdit();
+            };
+            openConfirmModal();
+        }
+
+        // --- Rendering Main List (Compact) ---
+        function renderTrips() {
+            const listContainer = document.getElementById('tripsList');
+            const emptyState = document.getElementById('emptyState');
+            
+            const filteredTrips = trips.filter(t => t.date.startsWith(selectedYear));
+            const sortedTrips = filteredTrips.sort((a, b) => {
+                if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                return b.id - a.id; 
+            });
+
+            let sumKm = 0;
+            listContainer.innerHTML = '';
+
+            if (sortedTrips.length === 0) {
+                emptyState.classList.remove('hidden');
+                listContainer.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                listContainer.classList.remove('hidden');
+
+                sortedTrips.forEach(trip => {
+                    sumKm += trip.kmTotal;
+                    const dateStr = new Date(trip.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                    
+                    let catColor = 'bg-gray-200 text-gray-700';
+                    if(trip.category === 'Arzt') catColor = 'bg-red-100 text-red-700';
+                    if(trip.category === 'Apotheke') catColor = 'bg-green-100 text-green-700';
+                    if(trip.category === 'Heilbehandlung') catColor = 'bg-purple-100 text-purple-700';
+                    if(trip.category === 'Schulung') catColor = 'bg-orange-100 text-orange-700';
+
+                    const reasonText = trip.reason ? trip.reason : '<span class="text-gray-300">-</span>';
+
+                    const html = `
+                        <div class="px-3 py-1.5 hover:bg-blue-50/50 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 group text-xs text-gray-700 transition">
+                            
+                            <!-- Mobile Top Row / Desktop Flex Container -->
+                            <div class="flex-1 flex flex-col sm:flex-row gap-1 sm:gap-2 sm:items-center w-full">
+                                
+                                <div class="flex items-center gap-2 sm:w-auto">
+                                    <div class="w-14 font-medium text-gray-900">${dateStr}</div>
+                                    <div class="w-12 truncate text-gray-500" title="${trip.person}">${trip.person}</div>
+                                </div>
+                                
+                                <div class="flex items-center gap-2 sm:w-auto">
+                                    <div class="w-16 shrink-0"><span class="px-1 py-0.5 rounded-sm text-[10px] font-semibold block text-center truncate ${catColor}">${trip.category}</span></div>
+                                    <div class="flex-1 sm:w-32 md:w-48 font-medium truncate" title="${trip.target}">${trip.target}</div>
+                                </div>
+                                
+                                <div class="flex-1 text-gray-500 truncate min-w-0 italic" title="${trip.reason || ''}">
+                                    ${reasonText}
+                                </div>
+                                
+                            </div>
+
+                            <!-- KM and Actions -->
+                            <div class="flex items-center justify-between sm:justify-end gap-3 mt-1 sm:mt-0 w-full sm:w-auto border-t sm:border-0 border-gray-100 pt-1 sm:pt-0">
+                                <div class="font-semibold text-gray-900 sm:w-16 sm:text-right">${trip.kmTotal.toLocaleString('de-DE')} <span class="text-gray-400 font-normal">km</span></div>
+                                <div class="flex gap-0.5 sm:w-12 justify-end sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onclick="editTrip('${trip.id}')" class="text-blue-500 p-1 hover:bg-blue-100 rounded" title="Bearbeiten"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                    <button onclick="deleteTripRequest('${trip.id}')" class="text-red-500 p-1 hover:bg-red-100 rounded" title="Löschen"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    listContainer.insertAdjacentHTML('beforeend', html);
+                });
+            }
+
+            document.getElementById('totalKmDisplay').innerText = sumKm.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+            document.getElementById('entryCountBadge').innerText = sortedTrips.length;
+        }
+
+        // --- Settings Management ---
+        function populatePersons() {
+            const select = document.getElementById('personInput');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="" disabled selected>Wählen...</option>';
+            settings.persons.forEach(p => {
+                select.insertAdjacentHTML('beforeend', `<option value="${p}">${p}</option>`);
+            });
+            if(settings.persons.includes(currentVal)) select.value = currentVal;
+
+            const list = document.getElementById('personsList');
+            list.innerHTML = '';
+            settings.persons.forEach(p => {
+                list.insertAdjacentHTML('beforeend', `<li class="px-3 py-2 flex justify-between items-center"><span class="font-medium text-gray-700">${p}</span><button onclick="deletePerson('${p}')" class="text-red-500 hover:bg-red-50 p-1 rounded text-xs">Löschen</button></li>`);
+            });
+        }
+
+        function populateReasons() {
+            const datalist = document.getElementById('reasonList');
+            datalist.innerHTML = '';
+            settings.reasons.forEach(r => datalist.insertAdjacentHTML('beforeend', `<option value="${r}">`));
+
+            const list = document.getElementById('reasonsList');
+            list.innerHTML = '';
+            settings.reasons.forEach(r => {
+                list.insertAdjacentHTML('beforeend', `<li class="px-3 py-2 flex justify-between items-center"><span class="font-medium text-gray-700">${r}</span><button onclick="deleteReason('${r}')" class="text-red-500 hover:bg-red-50 p-1 rounded text-xs">Löschen</button></li>`);
+            });
+        }
+
+        function addPerson() {
+            const input = document.getElementById('newPersonInput');
+            const val = input.value.trim();
+            if (val && !settings.persons.includes(val)) {
+                settings.persons.push(val);
+                input.value = '';
+                saveSettings();
+            }
+        }
+
+        function deletePerson(name) {
+            settings.persons = settings.persons.filter(p => p !== name);
+            saveSettings();
+        }
+
+        function addReason() {
+            const input = document.getElementById('newReasonInput');
+            const val = input.value.trim();
+            if (val && !settings.reasons.includes(val)) {
+                settings.reasons.push(val);
+                input.value = '';
+                saveSettings();
+            }
+        }
+
+        function deleteReason(val) {
+            settings.reasons = settings.reasons.filter(r => r !== val);
+            saveSettings();
+        }
+
+        function renderSettingsDestinations() {
+            const list = document.getElementById('destinationsList');
+            list.innerHTML = '';
+            settings.destinations.forEach(d => {
+                list.insertAdjacentHTML('beforeend', `
+                    <tr class="hover:bg-gray-50 border-b border-gray-100 last:border-0 bg-white">
+                        <td class="px-3 py-2"><div class="font-medium text-gray-800">${d.name}</div><div class="text-[10px] text-gray-500">${d.category}</div></td>
+                        <td class="px-3 py-2 hidden md:table-cell text-gray-500 truncate max-w-[150px]">${d.address}</td>
+                        <td class="px-3 py-2 text-right font-medium">${d.kmOneWay}</td>
+                        <td class="px-3 py-2 text-center whitespace-nowrap">
+                            <button onclick="editDestination('${d.id}')" class="text-blue-500 p-1">✏️</button>
+                            <button onclick="deleteDestination('${d.id}')" class="text-red-500 p-1">❌</button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
+
+        function saveDestination() {
+            const id = document.getElementById('destEditId').value;
+            const category = document.getElementById('destCategory').value;
+            const name = document.getElementById('destName').value.trim();
+            const address = document.getElementById('destAddress').value.trim();
+            const km = parseFloat(document.getElementById('destKm').value);
+
+            if(!name || !address || isNaN(km)) return showToast('Felder füllen', 'error');
+
+            if (id) {
+                const idx = settings.destinations.findIndex(d => d.id === id);
+                if (idx > -1) settings.destinations[idx] = { id, category, name, address, kmOneWay: km };
+            } else {
+                settings.destinations.push({ id: 'd_' + Date.now(), category, name, address, kmOneWay: km });
+            }
+            saveSettings();
+            resetDestForm();
+        }
+
+        function editDestination(id) {
+            const d = settings.destinations.find(x => x.id === id);
+            if(!d) return;
+            document.getElementById('destEditId').value = d.id;
+            document.getElementById('destCategory').value = d.category;
+            document.getElementById('destName').value = d.name;
+            document.getElementById('destAddress').value = d.address;
+            document.getElementById('destKm').value = d.kmOneWay;
+            document.getElementById('destSaveBtn').innerText = 'Upd';
+            document.getElementById('destCancelBtn').classList.remove('hidden');
+        }
+
+        function resetDestForm() {
+            document.getElementById('destEditId').value = '';
+            document.getElementById('destName').value = '';
+            document.getElementById('destAddress').value = '';
+            document.getElementById('destKm').value = '';
+            document.getElementById('destSaveBtn').innerText = 'Save';
+            document.getElementById('destCancelBtn').classList.add('hidden');
+        }
+
+        function deleteDestination(id) {
+            settings.destinations = settings.destinations.filter(d => d.id !== id);
+            saveSettings();
+        }
+
+        // --- Modals UI ---
+        function openSettingsModal() {
+            const m = document.getElementById('settingsModal');
+            const c = document.getElementById('settingsModalContent');
+            m.classList.remove('hidden'); m.classList.add('flex');
+            setTimeout(() => { m.classList.remove('opacity-0'); c.classList.remove('scale-95'); }, 10);
+        }
+
+        function closeSettingsModal() {
+            const m = document.getElementById('settingsModal');
+            const c = document.getElementById('settingsModalContent');
+            m.classList.add('opacity-0'); c.classList.add('scale-95');
+            setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 200);
+        }
+
+        function switchTab(tab) {
+            ['destinations', 'persons', 'reasons'].forEach(t => {
+                document.getElementById(`tabContent-${t}`).classList.toggle('hidden', tab !== t);
+                document.getElementById(`tabContent-${t}`).classList.toggle('block', tab === t);
+                const btn = document.getElementById(`tabBtn-${t}`);
+                btn.className = tab === t 
+                    ? "px-3 py-1.5 border-b-2 font-medium text-blue-600 border-blue-600 text-sm whitespace-nowrap" 
+                    : "px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap";
+            });
+        }
+
+        function openConfirmModal() {
+            const m = document.getElementById('confirmModal');
+            const c = document.getElementById('confirmModalContent');
+            m.classList.remove('hidden'); m.classList.add('flex');
+            setTimeout(() => { m.classList.remove('opacity-0'); c.classList.remove('scale-95'); }, 10);
+            document.getElementById('confirmActionBtn').onclick = () => {
+                if(confirmActionCallback) confirmActionCallback();
+                closeConfirmModal();
+            };
+        }
+
+        function closeConfirmModal() {
+            const m = document.getElementById('confirmModal');
+            const c = document.getElementById('confirmModalContent');
+            m.classList.add('opacity-0'); c.classList.add('scale-95');
+            setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); confirmActionCallback = null; }, 200);
+        }
+
+        // --- Export / Import ---
+        function exportCSV() {
+            const yearTrips = trips.filter(t => t.date.startsWith(selectedYear));
+            if (yearTrips.length === 0) return showToast(`Keine Daten für ${selectedYear}.`, 'error');
+
+            let csvContent = "\uFEFFDatum;Person;Kategorie;Ziel;Adresse;Grund;Einfache Strecke (km);Gesamtkilometer (km)\n";
+            yearTrips.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(t => {
+                const dStr = new Date(t.date).toLocaleDateString('de-DE');
+                const cp = `"${t.person.replace(/"/g, '""')}"`;
+                const ct = `"${t.target.replace(/"/g, '""')}"`;
+                const ca = `"${t.address.replace(/"/g, '""')}"`;
+                const cr = t.reason ? `"${t.reason.replace(/"/g, '""')}"` : '""';
+                const k1 = t.kmOneWay.toString().replace('.', ',');
+                const kt = t.kmTotal.toString().replace('.', ',');
+                csvContent += `${dStr};${cp};${t.category};${ct};${ca};${cr};${k1};${kt}\n`;
+            });
+
+            downloadFile(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }), `Fahrten_${selectedYear}.csv`);
+            showToast('CSV exportiert', 'success');
+        }
+
+        function exportJSON() {
+            const yearTrips = trips.filter(t => t.date.startsWith(selectedYear));
+            if (yearTrips.length === 0) return showToast(`Keine Daten.`, 'error');
+            const dataStr = JSON.stringify(yearTrips, null, 2);
+            downloadFile(new Blob([dataStr], { type: 'application/json' }), `Backup_${selectedYear}.json`);
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        document.getElementById('confirmModalText').innerHTML = `Achtung: Daten werden ergänzt. Fortfahren?`;
+                        confirmActionCallback = () => {
+                            imported.forEach(imp => { if(!trips.find(t => t.id === imp.id)) trips.push(imp); });
+                            saveData();
+                            showToast('Importiert', 'success');
+                            event.target.value = ''; 
+                        };
+                        openConfirmModal();
+                    }
+                } catch (error) { showToast('Fehler', 'error'); event.target.value = ''; }
+            };
+            reader.readAsText(file);
+        }
+
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = filename; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        let toastTimeout;
+        function showToast(msg, type = 'info') {
+            const t = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            t.className = `fixed bottom-4 right-4 md:bottom-6 md:right-6 text-white px-4 py-2 rounded-lg shadow-xl transform transition-all duration-300 z-50 flex items-center gap-2 text-sm ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-gray-800'}`;
+            t.classList.remove('translate-y-24', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => t.classList.add('translate-y-24', 'opacity-0'), 3000);
+        }
+    </script>
+</body>
+</html>
