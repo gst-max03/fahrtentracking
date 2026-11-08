@@ -247,9 +247,30 @@
                 
                 <!-- Tab: Cloud Sync -->
                 <div id="tabContent-sync" class="space-y-4 block">
-                    <p class="text-sm text-gray-600 mb-2">Füge hier die Web-App URL des Google Apps Scripts ein, um die Daten zwischen Geräten zu synchronisieren.</p>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                        <h3 class="font-bold mb-2">Google Cloud Sync einrichten (Google Drive)</h3>
+                        <p class="mb-2">1. Wähle den Speicherpfad in deiner Google Ablage:</p>
+                        <input type="text" id="drivePathInput" value="AppDaten/Finanzfahrt/" oninput="generateGoogleScript()" class="w-full px-2 py-1.5 border border-blue-300 rounded mb-3 bg-white text-sm">
+                        
+                        <p class="mb-2">2. Kopiere dieses Skript:</p>
+                        <div class="relative">
+                            <textarea id="googleScriptCode" readonly class="w-full h-32 p-2 text-xs font-mono bg-gray-900 text-green-400 rounded border-none focus:ring-0 custom-scrollbar"></textarea>
+                            <button onclick="copyGoogleScript()" class="absolute top-2 right-2 bg-gray-700 text-white px-2 py-1 rounded text-xs hover:bg-gray-600 transition">Kopieren</button>
+                        </div>
+                        
+                        <ol class="list-decimal ml-4 mt-3 space-y-1 text-xs">
+                            <li>Öffne <a href="https://script.google.com" target="_blank" class="underline font-bold text-blue-700">script.google.com</a> und erstelle ein "Neues Projekt".</li>
+                            <li>Füge den kopierten Code dort ein und speichere (Diskettensymbol).</li>
+                            <li>Klicke oben rechts auf <b>Bereitstellen &gt; Neue Bereitstellung</b>.</li>
+                            <li>Wähle Typ: <b>Web-App</b> und Zugriff: <b>Jeder</b>.</li>
+                            <li>Kopiere die bereitgestellte Web-App-URL und füge sie unten ein.</li>
+                        </ol>
+                    </div>
+
+                    <p class="text-sm text-gray-700 mb-2 font-bold mt-4">Web-App URL eintragen:</p>
                     <div class="flex gap-2 mb-4">
-                        <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." class="px-2 py-1.5 text-sm border rounded flex-1">
+                        <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." class="px-2 py-1.5 text-sm border border-gray-300 rounded flex-1">
                         <button onclick="saveSyncUrl()" class="bg-green-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-green-700">Speichern</button>
                     </div>
                 </div>
@@ -364,9 +385,9 @@
         
         let trips = [];
         let settings = {
-            persons: ['Gerhard', 'Katha', 'Louis', 'Tim', 'Lia'],
+            persons: [],
             destinations: [],
-            reasons: ['Ergotherapie', 'Physiotherapie', 'Routineuntersuchung']
+            reasons: []
         };
         let currentYear = new Date().getFullYear();
         let selectedYear = currentYear.toString();
@@ -379,6 +400,7 @@
             populatePersons();
             populateReasons();
             setDefaultDate();
+            generateGoogleScript();
             
             document.getElementById('syncUrlInput').value = localStorage.getItem(SYNC_URL_KEY) || '';
             
@@ -421,7 +443,79 @@
             renderSettingsDestinations();
         }
 
-        // --- Cloud Sync ---
+        // --- Cloud Sync Setup ---
+        function generateGoogleScript() {
+            const path = document.getElementById('drivePathInput').value || 'AppDaten/Finanzfahrt/';
+            const scriptStr = `var FOLDER_PATH = "${path}";
+var FILE_NAME = "FahrtenData.json";
+
+function doGet(e) {
+  var file = getFileByPath(FOLDER_PATH, FILE_NAME);
+  if (file) {
+    return ContentService.createTextOutput(file.getBlob().getDataAsString()).setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput("{}").setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var data = e.postData.contents;
+  var file = getOrCreateFile(FOLDER_PATH, FILE_NAME);
+  file.setContent(data);
+  return ContentService.createTextOutput(JSON.stringify({status: "success"})).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOrCreateFile(path, filename) {
+  var folders = path.split('/').filter(function(f) { return f.length > 0; });
+  var folder = DriveApp.getRootFolder();
+  for (var i = 0; i < folders.length; i++) {
+    var nextFolders = folder.getFoldersByName(folders[i]);
+    if (nextFolders.hasNext()) {
+      folder = nextFolders.next();
+    } else {
+      folder = folder.createFolder(folders[i]);
+    }
+  }
+  var files = folder.getFilesByName(filename);
+  if (files.hasNext()) {
+    return files.next();
+  } else {
+    return folder.createFile(filename, "{}", MimeType.PLAIN_TEXT);
+  }
+}
+
+function getFileByPath(path, filename) {
+  var folders = path.split('/').filter(function(f) { return f.length > 0; });
+  var folder = DriveApp.getRootFolder();
+  for (var i = 0; i < folders.length; i++) {
+    var nextFolders = folder.getFoldersByName(folders[i]);
+    if (nextFolders.hasNext()) {
+      folder = nextFolders.next();
+    } else {
+      return null;
+    }
+  }
+  var files = folder.getFilesByName(filename);
+  if (files.hasNext()) {
+    return files.next();
+  }
+  return null;
+}`;
+            document.getElementById('googleScriptCode').value = scriptStr;
+        }
+
+        function copyGoogleScript() {
+            const textarea = document.getElementById('googleScriptCode');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(textarea.value).then(() => {
+                    showToast('Skript kopiert!', 'success');
+                });
+            } else {
+                textarea.select();
+                document.execCommand('copy');
+                showToast('Skript kopiert!', 'success');
+            }
+        }
+
         function saveSyncUrl() {
             const url = document.getElementById('syncUrlInput').value.trim();
             localStorage.setItem(SYNC_URL_KEY, url);
