@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Steuer Fahrten-Tracker</title>
     
-    <!-- PWA Verknüpfungen (Angepasst für den Unterordner FinanzFahrt) -->
+    <!-- PWA Verknüpfungen -->
     <link rel="manifest" href="/fahrtentracking/FinanzFahrt/manifest.json?v=2">
     <link rel="apple-touch-icon" href="/fahrtentracking/FinanzFahrt/icon.png">
     <meta name="theme-color" content="#1e293b">
@@ -49,6 +49,11 @@
             </div>
 
             <div class="flex items-center gap-2">
+                <!-- Cloud Sync Button -->
+                <button onclick="syncCloud()" id="syncBtn" class="bg-green-50 text-green-700 p-1.5 px-3 rounded-lg shadow-sm border border-green-200 hover:bg-green-100 transition flex items-center gap-1.5 text-sm font-bold" title="Mit Cloud synchronisieren">
+                    ☁️ <span class="hidden sm:inline">Sync</span>
+                </button>
+
                 <!-- Jahres Filter -->
                 <div class="relative bg-white rounded-lg shadow-sm border border-gray-200 flex items-center px-3 py-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -158,11 +163,12 @@
                         </button>
                         
                         <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                            <!-- Backup Speichern (Full) -->
                             <button onclick="exportJSON()" class="bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 text-xs font-medium py-1.5 rounded transition">
-                                Backup laden
+                                Backup speichern
                             </button>
                             <label class="bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 text-xs font-medium py-1.5 rounded transition flex items-center justify-center cursor-pointer">
-                                Importieren
+                                Backup laden
                                 <input type="file" id="importFile" accept=".json" onchange="importJSON(event)">
                             </label>
                         </div>
@@ -231,15 +237,25 @@
             </div>
 
             <div class="flex border-b border-gray-200 px-2 pt-1 bg-gray-50 shrink-0 overflow-x-auto custom-scrollbar">
-                <button onclick="switchTab('destinations')" id="tabBtn-destinations" class="px-3 py-1.5 border-b-2 font-medium text-blue-600 border-blue-600 text-sm whitespace-nowrap">Ziele & Vorlagen</button>
+                <button onclick="switchTab('sync')" id="tabBtn-sync" class="px-3 py-1.5 border-b-2 font-medium text-green-600 border-green-600 text-sm whitespace-nowrap">Cloud Sync</button>
+                <button onclick="switchTab('destinations')" id="tabBtn-destinations" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Ziele & Vorlagen</button>
                 <button onclick="switchTab('persons')" id="tabBtn-persons" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Personen</button>
                 <button onclick="switchTab('reasons')" id="tabBtn-reasons" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Gründe / Notizen</button>
             </div>
 
             <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
                 
+                <!-- Tab: Cloud Sync -->
+                <div id="tabContent-sync" class="space-y-4 block">
+                    <p class="text-sm text-gray-600 mb-2">Füge hier die Web-App URL des Google Apps Scripts ein, um die Daten zwischen Geräten zu synchronisieren.</p>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." class="px-2 py-1.5 text-sm border rounded flex-1">
+                        <button onclick="saveSyncUrl()" class="bg-green-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-green-700">Speichern</button>
+                    </div>
+                </div>
+
                 <!-- Tab: Ziele -->
-                <div id="tabContent-destinations" class="space-y-4 block">
+                <div id="tabContent-destinations" class="hidden space-y-4">
                     <p class="text-xs text-gray-500 mb-2">Gespeicherte Ziele für die Auto-Vervollständigung.</p>
                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -295,11 +311,11 @@
     <!-- Confirm Modal -->
     <div id="confirmModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex-col items-center justify-center z-50 transition-opacity opacity-0 p-4">
         <div class="bg-white rounded-xl p-5 w-full max-w-sm shadow-2xl transform scale-95 transition-transform" id="confirmModalContent">
-            <h3 class="text-lg font-bold text-gray-800 mb-2">Löschen?</h3>
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Hinweis</h3>
             <p class="text-sm text-gray-600 mb-5" id="confirmModalText">Bist du sicher?</p>
             <div class="flex justify-end gap-2">
                 <button onclick="closeConfirmModal()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-sm font-medium transition">Abbrechen</button>
-                <button id="confirmActionBtn" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition shadow-sm">Löschen</button>
+                <button id="confirmActionBtn" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition shadow-sm">Bestätigen</button>
             </div>
         </div>
     </div>
@@ -344,6 +360,7 @@
         // --- State ---
         const DATA_KEY = 'steuer_fahrten_data_v4';
         const SETTINGS_KEY = 'steuer_fahrten_settings_v4';
+        const SYNC_URL_KEY = 'steuer_fahrten_sync_url_v4';
         
         let trips = [];
         let settings = {
@@ -362,6 +379,8 @@
             populatePersons();
             populateReasons();
             setDefaultDate();
+            
+            document.getElementById('syncUrlInput').value = localStorage.getItem(SYNC_URL_KEY) || '';
             
             document.getElementById('tripForm').addEventListener('submit', handleFormSubmit);
             document.getElementById('kmOneWayInput').addEventListener('input', calculateTotalKm);
@@ -400,6 +419,70 @@
             populateReasons();
             updateTargetDatalist();
             renderSettingsDestinations();
+        }
+
+        // --- Cloud Sync ---
+        function saveSyncUrl() {
+            const url = document.getElementById('syncUrlInput').value.trim();
+            localStorage.setItem(SYNC_URL_KEY, url);
+            showToast('Sync URL gespeichert!', 'success');
+        }
+
+        async function syncCloud() {
+            const syncUrl = localStorage.getItem(SYNC_URL_KEY);
+            if (!syncUrl) {
+                showToast('Bitte Sync URL eintragen!', 'error');
+                openSettingsModal();
+                switchTab('sync');
+                return;
+            }
+            
+            const btn = document.getElementById('syncBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `⏳ <span class="hidden sm:inline">Sync...</span>`;
+            
+            try {
+                // Daten aus der Cloud laden
+                const response = await fetch(syncUrl);
+                const cloudData = await response.json();
+
+                // Merge Trips (Lokale IDs überschreiben Cloud bei Konflikt, aber alle erhalten)
+                const allTrips = [...(cloudData.trips || []), ...trips];
+                const tripsMap = new Map();
+                allTrips.forEach(t => tripsMap.set(t.id, t));
+                trips = Array.from(tripsMap.values());
+
+                // Merge Settings
+                if (cloudData.settings) {
+                    settings.persons = [...new Set([...(cloudData.settings.persons || []), ...settings.persons])];
+                    settings.reasons = [...new Set([...(cloudData.settings.reasons || []), ...settings.reasons])];
+                    
+                    const allDest = [...(cloudData.settings.destinations || []), ...settings.destinations];
+                    const destMap = new Map();
+                    allDest.forEach(d => destMap.set(d.id || d.name, d)); // Fallback auf Namen falls ID fehlt
+                    settings.destinations = Array.from(destMap.values());
+                }
+
+                saveData();
+                saveSettings(); // Rendert auch die Settings-UI neu
+
+                // Aktualisierten Stand hochladen
+                await fetch(syncUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({ trips, settings }),
+                    headers: { 'Content-Type': 'text/plain' } // text/plain verhindert preflight CORS Fehler bei Google Apps Script
+                });
+
+                renderTrips();
+                btn.innerHTML = `✅ <span class="hidden sm:inline">OK</span>`;
+                setTimeout(() => btn.innerHTML = originalHtml, 2000);
+                showToast('Erfolgreich synchronisiert', 'success');
+            } catch (error) {
+                console.error(error);
+                btn.innerHTML = `❌ <span class="hidden sm:inline">Fehler</span>`;
+                setTimeout(() => btn.innerHTML = originalHtml, 3000);
+                showToast('Fehler beim Synchronisieren', 'error');
+            }
         }
 
         // --- Year Filter ---
@@ -586,6 +669,11 @@
             const trip = trips.find(t => t.id === id);
             if(!trip) return;
             document.getElementById('confirmModalText').innerHTML = `Eintrag vom <b>${new Date(trip.date).toLocaleDateString('de-DE')}</b> (${trip.target}) wirklich löschen?`;
+            
+            const actionBtn = document.getElementById('confirmActionBtn');
+            actionBtn.classList.replace('bg-blue-600', 'bg-red-600');
+            actionBtn.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+            actionBtn.innerText = 'Löschen';
             
             confirmActionCallback = () => {
                 trips = trips.filter(t => t.id !== id);
@@ -807,12 +895,12 @@
         }
 
         function switchTab(tab) {
-            ['destinations', 'persons', 'reasons'].forEach(t => {
+            ['sync', 'destinations', 'persons', 'reasons'].forEach(t => {
                 document.getElementById(`tabContent-${t}`).classList.toggle('hidden', tab !== t);
                 document.getElementById(`tabContent-${t}`).classList.toggle('block', tab === t);
                 const btn = document.getElementById(`tabBtn-${t}`);
                 btn.className = tab === t 
-                    ? "px-3 py-1.5 border-b-2 font-medium text-blue-600 border-blue-600 text-sm whitespace-nowrap" 
+                    ? `px-3 py-1.5 border-b-2 font-medium text-${tab === 'sync' ? 'green' : 'blue'}-600 border-${tab === 'sync' ? 'green' : 'blue'}-600 text-sm whitespace-nowrap` 
                     : "px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap";
             });
         }
@@ -822,10 +910,6 @@
             const c = document.getElementById('confirmModalContent');
             m.classList.remove('hidden'); m.classList.add('flex');
             setTimeout(() => { m.classList.remove('opacity-0'); c.classList.remove('scale-95'); }, 10);
-            document.getElementById('confirmActionBtn').onclick = () => {
-                if(confirmActionCallback) confirmActionCallback();
-                closeConfirmModal();
-            };
         }
 
         function closeConfirmModal() {
@@ -833,6 +917,12 @@
             const c = document.getElementById('confirmModalContent');
             m.classList.add('opacity-0'); c.classList.add('scale-95');
             setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); confirmActionCallback = null; }, 200);
+            
+            // Zurücksetzen des Buttons falls er für 'Löschen' verändert wurde
+            const actionBtn = document.getElementById('confirmActionBtn');
+            actionBtn.classList.replace('bg-red-600', 'bg-blue-600');
+            actionBtn.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
+            actionBtn.innerText = 'Bestätigen';
         }
 
         // --- Export / Import ---
@@ -857,10 +947,10 @@
         }
 
         function exportJSON() {
-            const yearTrips = trips.filter(t => t.date.startsWith(selectedYear));
-            if (yearTrips.length === 0) return showToast(`Keine Daten.`, 'error');
-            const dataStr = JSON.stringify(yearTrips, null, 2);
-            downloadFile(new Blob([dataStr], { type: 'application/json' }), `Backup_${selectedYear}.json`);
+            // Speichert den kompletten Datenbestand (alle Jahre, alle Settings)
+            const dataStr = JSON.stringify({ trips, settings }, null, 2);
+            downloadFile(new Blob([dataStr], { type: 'application/json' }), `Fahrten_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            showToast('Komplettes Backup gespeichert', 'success');
         }
 
         function importJSON(event) {
@@ -870,17 +960,38 @@
             reader.onload = function(e) {
                 try {
                     const imported = JSON.parse(e.target.result);
-                    if (Array.isArray(imported)) {
-                        document.getElementById('confirmModalText').innerHTML = `Achtung: Daten werden ergänzt. Fortfahren?`;
-                        confirmActionCallback = () => {
+                    document.getElementById('confirmModalText').innerHTML = `Sollen die Daten aus dem Backup zusammengeführt werden?`;
+                    
+                    confirmActionCallback = () => {
+                        // Neues Format { trips, settings }
+                        if (imported.trips) {
+                            imported.trips.forEach(imp => { if(!trips.find(t => t.id === imp.id)) trips.push(imp); });
+                            
+                            if (imported.settings) {
+                                settings.persons = [...new Set([...(imported.settings.persons || []), ...settings.persons])];
+                                settings.reasons = [...new Set([...(imported.settings.reasons || []), ...settings.reasons])];
+                                if (imported.settings.destinations) {
+                                    imported.settings.destinations.forEach(d => {
+                                        if(!settings.destinations.find(ext => ext.id === d.id || ext.name === d.name)) {
+                                            settings.destinations.push(d);
+                                        }
+                                    });
+                                }
+                            }
+                        } 
+                        // Altes Format (nur Array)
+                        else if (Array.isArray(imported)) {
                             imported.forEach(imp => { if(!trips.find(t => t.id === imp.id)) trips.push(imp); });
-                            saveData();
-                            showToast('Importiert', 'success');
-                            event.target.value = ''; 
-                        };
-                        openConfirmModal();
-                    }
-                } catch (error) { showToast('Fehler', 'error'); event.target.value = ''; }
+                        }
+                        
+                        saveData();
+                        saveSettings();
+                        showToast('Backup erfolgreich importiert', 'success');
+                        closeConfirmModal();
+                    };
+                    openConfirmModal();
+                } catch (error) { showToast('Fehler beim Lesen der Datei', 'error'); }
+                event.target.value = ''; 
             };
             reader.readAsText(file);
         }
