@@ -50,7 +50,7 @@
 
             <div class="flex items-center gap-2">
                 <!-- Cloud Sync Button -->
-                <button onclick="syncCloud()" id="syncBtn" class="bg-green-50 text-green-700 p-1.5 px-3 rounded-lg shadow-sm border border-green-200 hover:bg-green-100 transition flex items-center gap-1.5 text-sm font-bold" title="Mit Cloud synchronisieren">
+                <button onclick="openSyncModal()" id="syncBtn" class="bg-green-50 text-green-700 p-1.5 px-3 rounded-lg shadow-sm border border-green-200 hover:bg-green-100 transition flex items-center gap-1.5 text-sm font-bold" title="Cloud Sync Einstellungen">
                     ☁️ <span class="hidden sm:inline">Sync</span>
                 </button>
 
@@ -225,6 +225,79 @@
 
     <!-- === MODALS === -->
 
+    <!-- Sync Modal (Neu hinzugefügt) -->
+    <div id="syncSettingsModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex-col items-center justify-center z-40 p-3 transition-opacity opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform scale-95 transition-transform" id="syncSettingsModalContent">
+            
+            <div class="px-5 py-3 border-b border-gray-200 flex justify-between items-center bg-green-50 shrink-0">
+                <h2 class="text-lg font-bold text-green-800 flex items-center gap-2">☁️ Google Drive Synchronisation</h2>
+                <button onclick="closeSyncModal()" class="text-gray-400 hover:text-gray-700 transition p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white space-y-5">
+                
+                <!-- Auto-Sync Toggle -->
+                <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg flex items-center gap-3">
+                    <input type="checkbox" id="autoSyncCheck" onchange="toggleAutoSync(this.checked)" class="w-5 h-5 text-green-600 rounded cursor-pointer">
+                    <div>
+                        <label for="autoSyncCheck" class="font-bold text-gray-800 cursor-pointer">Automatisch im Hintergrund synchronisieren</label>
+                        <p class="text-xs text-gray-500 mt-0.5">Lädt Änderungen automatisch hoch und ruft beim Öffnen der App den neuesten Stand ab. Ideal für mehrere Handys!</p>
+                    </div>
+                </div>
+
+                <!-- Manuelle Sync Buttons -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="uiPushBtn" onclick="uiPushToCloud()" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 py-3 rounded-lg font-medium text-sm transition flex flex-col items-center justify-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        In Cloud speichern
+                    </button>
+                    <button id="uiPullBtn" onclick="uiPullFromCloud()" class="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 py-3 rounded-lg font-medium text-sm transition flex flex-col items-center justify-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Aus Cloud laden
+                    </button>
+                </div>
+
+                <hr class="border-gray-200">
+
+                <!-- Einrichtung & Web-App URL -->
+                <div>
+                    <p class="text-sm text-gray-700 mb-2 font-bold">Web-App URL eintragen:</p>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." class="px-2 py-1.5 text-sm border border-gray-300 rounded flex-1">
+                        <button onclick="saveSyncUrl()" class="bg-green-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-green-700">Speichern</button>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 mt-4">
+                        <h3 class="font-bold mb-2">Google Cloud Sync Ersteinrichtung</h3>
+                        <p class="mb-2">1. Wähle den Speicherpfad in deiner Google Ablage:</p>
+                        <input type="text" id="drivePathInput" value="AppDaten/Finanzfahrt/" oninput="generateGoogleScript()" class="w-full px-2 py-1.5 border border-blue-300 rounded mb-3 bg-white text-sm">
+                        
+                        <p class="mb-2">2. Kopiere dieses Skript:</p>
+                        <div class="relative">
+                            <textarea id="googleScriptCode" readonly class="w-full h-24 p-2 text-xs font-mono bg-gray-900 text-green-400 rounded border-none focus:ring-0 custom-scrollbar"></textarea>
+                            <button onclick="copyGoogleScript()" class="absolute top-2 right-2 bg-gray-700 text-white px-2 py-1 rounded text-xs hover:bg-gray-600 transition">Kopieren</button>
+                        </div>
+                        
+                        <ol class="list-decimal ml-4 mt-3 space-y-1 text-xs">
+                            <li>Öffne <a href="https://script.google.com" target="_blank" class="underline font-bold text-blue-700">script.google.com</a> und erstelle ein "Neues Projekt".</li>
+                            <li>Füge den kopierten Code dort ein und speichere (Diskettensymbol).</li>
+                            <li>Klicke oben rechts auf <b>Bereitstellen &gt; Neue Bereitstellung</b> (Typ: Web-App, Zugriff: Jeder).</li>
+                            <li class="mt-2 text-red-700 bg-red-50 p-1 rounded"><b>URL wiederfinden:</b> Öffne dein Projekt in script.google.com, klicke oben rechts auf <b>Bereitstellen &gt; Bereitstellungen verwalten</b>. Dort steht die Web-App-URL.</li>
+                        </ol>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="p-3 border-t border-gray-200 bg-gray-50 flex justify-end shrink-0">
+                <button onclick="closeSyncModal()" class="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded text-sm font-medium transition">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Settings / Verwaltung Modal -->
     <div id="settingsModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex-col items-center justify-center z-40 p-3 transition-opacity opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform scale-95 transition-transform" id="settingsModalContent">
@@ -237,46 +310,15 @@
             </div>
 
             <div class="flex border-b border-gray-200 px-2 pt-1 bg-gray-50 shrink-0 overflow-x-auto custom-scrollbar">
-                <button onclick="switchTab('sync')" id="tabBtn-sync" class="px-3 py-1.5 border-b-2 font-medium text-green-600 border-green-600 text-sm whitespace-nowrap">Cloud Sync</button>
-                <button onclick="switchTab('destinations')" id="tabBtn-destinations" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Ziele & Vorlagen</button>
+                <button onclick="switchTab('destinations')" id="tabBtn-destinations" class="px-3 py-1.5 border-b-2 font-medium text-blue-600 border-blue-600 text-sm whitespace-nowrap">Ziele & Vorlagen</button>
                 <button onclick="switchTab('persons')" id="tabBtn-persons" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Personen</button>
                 <button onclick="switchTab('reasons')" id="tabBtn-reasons" class="px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap">Gründe / Notizen</button>
             </div>
 
             <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
                 
-                <!-- Tab: Cloud Sync -->
-                <div id="tabContent-sync" class="space-y-4 block">
-                    
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                        <h3 class="font-bold mb-2">Google Cloud Sync einrichten (Google Drive)</h3>
-                        <p class="mb-2">1. Wähle den Speicherpfad in deiner Google Ablage:</p>
-                        <input type="text" id="drivePathInput" value="AppDaten/Finanzfahrt/" oninput="generateGoogleScript()" class="w-full px-2 py-1.5 border border-blue-300 rounded mb-3 bg-white text-sm">
-                        
-                        <p class="mb-2">2. Kopiere dieses Skript:</p>
-                        <div class="relative">
-                            <textarea id="googleScriptCode" readonly class="w-full h-32 p-2 text-xs font-mono bg-gray-900 text-green-400 rounded border-none focus:ring-0 custom-scrollbar"></textarea>
-                            <button onclick="copyGoogleScript()" class="absolute top-2 right-2 bg-gray-700 text-white px-2 py-1 rounded text-xs hover:bg-gray-600 transition">Kopieren</button>
-                        </div>
-                        
-                        <ol class="list-decimal ml-4 mt-3 space-y-1 text-xs">
-                            <li>Öffne <a href="https://script.google.com" target="_blank" class="underline font-bold text-blue-700">script.google.com</a> und erstelle ein "Neues Projekt".</li>
-                            <li>Füge den kopierten Code dort ein und speichere (Diskettensymbol).</li>
-                            <li>Klicke oben rechts auf <b>Bereitstellen &gt; Neue Bereitstellung</b>.</li>
-                            <li>Wähle Typ: <b>Web-App</b> und Zugriff: <b>Jeder</b>.</li>
-                            <li>Kopiere die bereitgestellte Web-App-URL und füge sie unten ein.</li>
-                        </ol>
-                    </div>
-
-                    <p class="text-sm text-gray-700 mb-2 font-bold mt-4">Web-App URL eintragen:</p>
-                    <div class="flex gap-2 mb-4">
-                        <input type="text" id="syncUrlInput" placeholder="https://script.google.com/macros/s/..." class="px-2 py-1.5 text-sm border border-gray-300 rounded flex-1">
-                        <button onclick="saveSyncUrl()" class="bg-green-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-green-700">Speichern</button>
-                    </div>
-                </div>
-
                 <!-- Tab: Ziele -->
-                <div id="tabContent-destinations" class="hidden space-y-4">
+                <div id="tabContent-destinations" class="block space-y-4">
                     <p class="text-xs text-gray-500 mb-2">Gespeicherte Ziele für die Auto-Vervollständigung.</p>
                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -363,7 +405,6 @@
                 }).catch(err => console.log('SW Registration failed: ', err));
             });
 
-            // Trigger reload after update
             let refreshing;
             navigator.serviceWorker.addEventListener('controllerchange', function () {
                 if (refreshing) return;
@@ -382,6 +423,7 @@
         const DATA_KEY = 'steuer_fahrten_data_v4';
         const SETTINGS_KEY = 'steuer_fahrten_settings_v4';
         const SYNC_URL_KEY = 'steuer_fahrten_sync_url_v4';
+        const AUTO_SYNC_KEY = 'steuer_fahrten_autosync_v4';
         
         let trips = [];
         let settings = {
@@ -392,6 +434,8 @@
         let currentYear = new Date().getFullYear();
         let selectedYear = currentYear.toString();
         let confirmActionCallback = null;
+        let autoSyncEnabled = localStorage.getItem(AUTO_SYNC_KEY) === 'true';
+        let isSyncing = false;
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -403,11 +447,24 @@
             generateGoogleScript();
             
             document.getElementById('syncUrlInput').value = localStorage.getItem(SYNC_URL_KEY) || '';
+            document.getElementById('autoSyncCheck').checked = autoSyncEnabled;
             
             document.getElementById('tripForm').addEventListener('submit', handleFormSubmit);
             document.getElementById('kmOneWayInput').addEventListener('input', calculateTotalKm);
             document.getElementById('categoryInput').addEventListener('change', updateTargetDatalist);
             document.getElementById('targetInput').addEventListener('input', handleTargetMemoryFill);
+
+            // Initial Auto Sync beim Starten der App
+            if (autoSyncEnabled) {
+                mergeSync(true);
+            }
+        });
+
+        // WENN das Handy aus dem Standby aufgewacht / Tab sichtbar wird
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === 'visible' && autoSyncEnabled && navigator.onLine) {
+                mergeSync(true);
+            }
         });
 
         // --- Data Management ---
@@ -441,6 +498,13 @@
             populateReasons();
             updateTargetDatalist();
             renderSettingsDestinations();
+        }
+
+        // Informiert das Sync-System, dass sich lokale Daten geändert haben
+        function notifyDataChanged() {
+            if (autoSyncEnabled) {
+                mergeSync(true);
+            }
         }
 
         // --- Cloud Sync Setup ---
@@ -522,25 +586,49 @@ function getFileByPath(path, filename) {
             showToast('Sync URL gespeichert!', 'success');
         }
 
-        async function syncCloud() {
+        function toggleAutoSync(checked) {
+            autoSyncEnabled = checked;
+            localStorage.setItem(AUTO_SYNC_KEY, checked);
+            if (checked) {
+                mergeSync(true); // Direkt einen Abgleich machen, wenn eingeschaltet
+                showToast('Auto-Sync aktiviert', 'success');
+            } else {
+                showToast('Auto-Sync deaktiviert', 'info');
+            }
+        }
+
+        // --- Core Sync Logik ---
+
+        // Button: Aus Cloud laden
+        async function uiPullFromCloud() {
+            const btn = document.getElementById('uiPullBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '⏳ Lade...';
+            await pullFromCloud(false);
+            btn.innerHTML = originalHtml;
+        }
+
+        // Button: In Cloud speichern
+        async function uiPushToCloud() {
+            const btn = document.getElementById('uiPushBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '⏳ Speichere...';
+            await pushToCloud(false);
+            btn.innerHTML = originalHtml;
+        }
+
+        // Lädt aus der Cloud und mischt mit lokalen Daten
+        async function pullFromCloud(silent = false) {
             const syncUrl = localStorage.getItem(SYNC_URL_KEY);
             if (!syncUrl) {
-                showToast('Bitte Sync URL eintragen!', 'error');
-                openSettingsModal();
-                switchTab('sync');
-                return;
+                if (!silent) showToast('Bitte Sync URL eintragen!', 'error');
+                return false;
             }
-            
-            const btn = document.getElementById('syncBtn');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = `⏳ <span class="hidden sm:inline">Sync...</span>`;
-            
             try {
-                // Daten aus der Cloud laden
                 const response = await fetch(syncUrl);
                 const cloudData = await response.json();
 
-                // Merge Trips (Lokale IDs überschreiben Cloud bei Konflikt, aber alle erhalten)
+                // Merge Trips (Lokale IDs überschreiben Cloud bei Konflikt, aber beide bleiben erhalten)
                 const allTrips = [...(cloudData.trips || []), ...trips];
                 const tripsMap = new Map();
                 allTrips.forEach(t => tripsMap.set(t.id, t));
@@ -553,30 +641,74 @@ function getFileByPath(path, filename) {
                     
                     const allDest = [...(cloudData.settings.destinations || []), ...settings.destinations];
                     const destMap = new Map();
-                    allDest.forEach(d => destMap.set(d.id || d.name, d)); // Fallback auf Namen falls ID fehlt
+                    allDest.forEach(d => destMap.set(d.id || d.name, d));
                     settings.destinations = Array.from(destMap.values());
                 }
 
-                saveData();
-                saveSettings(); // Rendert auch die Settings-UI neu
+                // Lokal sichern
+                localStorage.setItem(DATA_KEY, JSON.stringify(trips));
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+                
+                // UI aktualisieren
+                renderTrips();
+                populateYears();
+                populatePersons();
+                populateReasons();
+                updateTargetDatalist();
+                renderSettingsDestinations();
 
-                // Aktualisierten Stand hochladen
+                if (!silent) showToast('Erfolgreich aus der Cloud geladen', 'success');
+                return true;
+            } catch (error) {
+                console.error(error);
+                if (!silent) showToast('Fehler beim Laden', 'error');
+                return false;
+            }
+        }
+
+        // Speichert stumpf den aktuellen lokalen Stand in die Cloud
+        async function pushToCloud(silent = false) {
+            const syncUrl = localStorage.getItem(SYNC_URL_KEY);
+            if (!syncUrl) {
+                if (!silent) showToast('Bitte Sync URL eintragen!', 'error');
+                return false;
+            }
+            try {
                 await fetch(syncUrl, {
                     method: 'POST',
                     body: JSON.stringify({ trips, settings }),
-                    headers: { 'Content-Type': 'text/plain' } // text/plain verhindert preflight CORS Fehler bei Google Apps Script
+                    headers: { 'Content-Type': 'text/plain' }
                 });
-
-                renderTrips();
-                btn.innerHTML = `✅ <span class="hidden sm:inline">OK</span>`;
-                setTimeout(() => btn.innerHTML = originalHtml, 2000);
-                showToast('Erfolgreich synchronisiert', 'success');
+                if (!silent) showToast('Erfolgreich in der Cloud gespeichert', 'success');
+                return true;
             } catch (error) {
                 console.error(error);
-                btn.innerHTML = `❌ <span class="hidden sm:inline">Fehler</span>`;
-                setTimeout(() => btn.innerHTML = originalHtml, 3000);
-                showToast('Fehler beim Synchronisieren', 'error');
+                if (!silent) showToast('Fehler beim Speichern in Cloud', 'error');
+                return false;
             }
+        }
+
+        // Automatischer Hintergrund-Sync (Lädt -> Mischt -> Speichert hoch)
+        async function mergeSync(silent = false) {
+            if (isSyncing) return; // Verhindert doppelte Ausführungen
+            isSyncing = true;
+            
+            const syncBtn = document.getElementById('syncBtn');
+            const originalHtml = syncBtn.innerHTML;
+            if (silent) syncBtn.innerHTML = `⏳ <span class="hidden sm:inline">Sync...</span>`;
+
+            // Erst laden und mischen
+            const pullSuccess = await pullFromCloud(true);
+            // Wenn erfolgreich geladen, den gemischten Stand wieder hochladen
+            if (pullSuccess) {
+                await pushToCloud(true);
+            }
+            
+            if (silent) {
+                syncBtn.innerHTML = pullSuccess ? `✅ <span class="hidden sm:inline">OK</span>` : `❌ <span class="hidden sm:inline">Fehler</span>`;
+                setTimeout(() => syncBtn.innerHTML = originalHtml, 2000);
+            }
+            isSyncing = false;
         }
 
         // --- Year Filter ---
@@ -711,6 +843,9 @@ function getFileByPath(path, filename) {
                 document.getElementById('yearSelect').value = selectedYear;
             }
             saveData();
+            
+            // Auto-Sync Trigger
+            notifyDataChanged();
         }
 
         function editTrip(id) {
@@ -774,6 +909,7 @@ function getFileByPath(path, filename) {
                 saveData();
                 showToast('Gelöscht', 'success');
                 if(document.getElementById('editIdInput').value === id) cancelEdit();
+                notifyDataChanged(); // Auto-Sync Trigger
             };
             openConfirmModal();
         }
@@ -887,12 +1023,14 @@ function getFileByPath(path, filename) {
                 settings.persons.push(val);
                 input.value = '';
                 saveSettings();
+                notifyDataChanged();
             }
         }
 
         function deletePerson(name) {
             settings.persons = settings.persons.filter(p => p !== name);
             saveSettings();
+            notifyDataChanged();
         }
 
         function addReason() {
@@ -902,12 +1040,14 @@ function getFileByPath(path, filename) {
                 settings.reasons.push(val);
                 input.value = '';
                 saveSettings();
+                notifyDataChanged();
             }
         }
 
         function deleteReason(val) {
             settings.reasons = settings.reasons.filter(r => r !== val);
             saveSettings();
+            notifyDataChanged();
         }
 
         function renderSettingsDestinations() {
@@ -945,6 +1085,7 @@ function getFileByPath(path, filename) {
             }
             saveSettings();
             resetDestForm();
+            notifyDataChanged();
         }
 
         function editDestination(id) {
@@ -971,9 +1112,24 @@ function getFileByPath(path, filename) {
         function deleteDestination(id) {
             settings.destinations = settings.destinations.filter(d => d.id !== id);
             saveSettings();
+            notifyDataChanged();
         }
 
         // --- Modals UI ---
+        function openSyncModal() {
+            const m = document.getElementById('syncSettingsModal');
+            const c = document.getElementById('syncSettingsModalContent');
+            m.classList.remove('hidden'); m.classList.add('flex');
+            setTimeout(() => { m.classList.remove('opacity-0'); c.classList.remove('scale-95'); }, 10);
+        }
+
+        function closeSyncModal() {
+            const m = document.getElementById('syncSettingsModal');
+            const c = document.getElementById('syncSettingsModalContent');
+            m.classList.add('opacity-0'); c.classList.add('scale-95');
+            setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 200);
+        }
+
         function openSettingsModal() {
             const m = document.getElementById('settingsModal');
             const c = document.getElementById('settingsModalContent');
@@ -989,12 +1145,12 @@ function getFileByPath(path, filename) {
         }
 
         function switchTab(tab) {
-            ['sync', 'destinations', 'persons', 'reasons'].forEach(t => {
+            ['destinations', 'persons', 'reasons'].forEach(t => {
                 document.getElementById(`tabContent-${t}`).classList.toggle('hidden', tab !== t);
                 document.getElementById(`tabContent-${t}`).classList.toggle('block', tab === t);
                 const btn = document.getElementById(`tabBtn-${t}`);
                 btn.className = tab === t 
-                    ? `px-3 py-1.5 border-b-2 font-medium text-${tab === 'sync' ? 'green' : 'blue'}-600 border-${tab === 'sync' ? 'green' : 'blue'}-600 text-sm whitespace-nowrap` 
+                    ? `px-3 py-1.5 border-b-2 font-medium text-blue-600 border-blue-600 text-sm whitespace-nowrap` 
                     : "px-3 py-1.5 border-b-2 font-medium text-gray-500 border-transparent hover:text-gray-700 text-sm whitespace-nowrap";
             });
         }
@@ -1041,7 +1197,6 @@ function getFileByPath(path, filename) {
         }
 
         function exportJSON() {
-            // Speichert den kompletten Datenbestand (alle Jahre, alle Settings)
             const dataStr = JSON.stringify({ trips, settings }, null, 2);
             downloadFile(new Blob([dataStr], { type: 'application/json' }), `Fahrten_Backup_${new Date().toISOString().split('T')[0]}.json`);
             showToast('Komplettes Backup gespeichert', 'success');
@@ -1080,6 +1235,7 @@ function getFileByPath(path, filename) {
                         
                         saveData();
                         saveSettings();
+                        notifyDataChanged();
                         showToast('Backup erfolgreich importiert', 'success');
                         closeConfirmModal();
                     };
